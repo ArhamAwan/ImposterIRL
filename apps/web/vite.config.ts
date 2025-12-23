@@ -97,4 +97,7 @@ export default defineConfig({
   build: {
     target: "esnext",
   },
+  ssr: {
+    noExternal: ["react-idle-timer"],
+  },
 });

@@ -4,8 +4,8 @@
   "outputDirectory": "build/client",
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "source": "/((?!assets/|favicon.ico|.*\\.).*)",
+      "destination": "/api/index"
     }
   ]
 }

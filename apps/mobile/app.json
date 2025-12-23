@@ -51,7 +51,10 @@
       ],
       [
         "expo-video",
-        { "supportsBackgroundPlayback": true, "supportsPictureInPicture": true }
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ],
       "expo-font",
       "expo-secure-store",
@@ -66,7 +69,11 @@
     },
     "extra": {
       "router": {
-        "origin": false
+        "origin": false,
+        "sitemap": false
+      },
+      "eas": {
+        "projectId": "7ecceabb-b9a9-4fbc-9baf-b933ab52d446"
       }
     },
     "runtimeVersion": {

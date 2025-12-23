@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+
+  "rewrites": [
+    {
+      "source": "/_expo/static/js/web/canvaskit.wasm",
+      "destination": "/canvaskit.wasm"
+    },
+    {
+      "source": "/((?!assets/|.*\\.(?:html?|css|js|json|xml|ico|png|jpg|jpeg|gif|svg|wasm|ttf|woff2?|map)$).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

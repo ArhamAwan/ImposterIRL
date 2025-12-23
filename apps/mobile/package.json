@@ -3,6 +3,7 @@
   "main": "index",
   "version": "1.0.0",
   "scripts": {
+    "build": "npx expo export -p web",
     "postinstall": "patch-package"
   },
   "dependencies": {

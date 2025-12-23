@@ -11,7 +11,7 @@ import { Platform } from "react-native";
 export const API_BASE_URL =
   Platform.OS === "web"
     ? "http://localhost:4000" // Web usually runs on same machine as server
-    : "http://192.168.18.22:4000";
+    : "https://imposters-irl.vercel.app";
 
 // Helper to build API URLs
 export const apiUrl = (path) => `${API_BASE_URL}${path}`;
