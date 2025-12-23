@@ -4,13 +4,9 @@
 
 // When testing on simulator, use localhost
 // When testing on physical device, use your computer's IP address
-// When testing on simulator, use localhost
-// When testing on physical device, use your computer's IP address
 import { Platform } from "react-native";
 
-export const API_BASE_URL =
-  Platform.OS === "web"
-    : "https://imposterirl.onrender.com"; // Force production URL for now
+export const API_BASE_URL = "https://imposterirl.onrender.com"; // Force production URL for now
 
 // Helper to build API URLs
 export const apiUrl = (path) => `${API_BASE_URL}${path}`;
