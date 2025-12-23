@@ -10,8 +10,7 @@ import { Platform } from "react-native";
 
 export const API_BASE_URL =
   Platform.OS === "web"
-    ? "http://localhost:4000" // Web usually runs on same machine as server
-    : "https://imposterirl.onrender.com";
+    : "https://imposterirl.onrender.com"; // Force production URL for now
 
 // Helper to build API URLs
 export const apiUrl = (path) => `${API_BASE_URL}${path}`;
