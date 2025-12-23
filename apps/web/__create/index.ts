@@ -267,7 +267,7 @@ app.route(API_BASENAME, api);
 // Export app for Vercel
 export { app };
 
-export default await createHonoServer({
+export default createHonoServer({
   app,
   defaultLogger: false,
 });
