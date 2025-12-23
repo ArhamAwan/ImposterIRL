@@ -56,6 +56,7 @@ export default function LobbyWaitingRoom() {
   const [selectedCategory, setSelectedCategory] = useState("Animals");
   const [roundDuration, setRoundDuration] = useState(300);
   const [totalRounds, setTotalRounds] = useState(3);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     loadPlayerData();
@@ -118,6 +119,7 @@ export default function LobbyWaitingRoom() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setIsStarting(true);
 
     try {
       const response = await fetch(apiUrl("/api/lobby/start"), {
@@ -139,6 +141,8 @@ export default function LobbyWaitingRoom() {
     } catch (error) {
       console.error("Error starting game:", error);
       Alert.alert("Error", "Failed to start game. Please try again.");
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -409,6 +413,7 @@ export default function LobbyWaitingRoom() {
                   />
                 }
                 style={styles.startButton}
+                loading={isStarting}
               >
                 {canStartGame
                   ? "Start Game"
