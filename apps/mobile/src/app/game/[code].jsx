@@ -134,7 +134,6 @@ export default function GameScreen() {
   const { lobby, round, players, eliminatedIds, votes, scores } = gameData;
   const isImposter = round?.imposter_id === currentPlayer.playerId;
   const isEliminated = eliminatedIds?.includes(currentPlayer.playerId);
-  const activePlayers = getActivePlayers(players, eliminatedIds);
 
   // Game finished - show final scoreboard (check this FIRST)
   if (lobby.status === "finished") {
