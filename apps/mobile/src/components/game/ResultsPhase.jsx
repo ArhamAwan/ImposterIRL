@@ -186,10 +186,7 @@ export function ResultsPhase({
               return (
                 <View
                   key={result.player.id}
-                  style={[
-                    styles.voteItem,
-                    index > 0 && styles.voteItemBorder,
-                  ]}
+                  style={[styles.voteItem, index > 0 && styles.voteItemBorder]}
                 >
                   <View
                     style={[
@@ -216,7 +213,10 @@ export function ResultsPhase({
                         style={[
                           styles.voteBarFill,
                           {
-                            width: maxVotes > 0 ? `${(result.votes / maxVotes) * 100}%` : "0%",
+                            width:
+                              maxVotes > 0
+                                ? `${(result.votes / maxVotes) * 100}%`
+                                : "0%",
                             backgroundColor: isTopVoted
                               ? colors.accent.red
                               : colors.primary.purple,
@@ -257,12 +257,7 @@ export function ResultsPhase({
 
       {/* Bottom button */}
       {isHost && (
-        <View
-          style={[
-            styles.bottomBar,
-            { paddingBottom: insets.bottom + 24 },
-          ]}
-        >
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
           <GradientButton
             variant="primary"
             onPress={handleNextRound}
@@ -281,12 +276,7 @@ export function ResultsPhase({
       )}
 
       {!isHost && (
-        <View
-          style={[
-            styles.bottomBar,
-            { paddingBottom: insets.bottom + 24 },
-          ]}
-        >
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
           <Text style={styles.waitingText}>
             Waiting for host to continue...
           </Text>

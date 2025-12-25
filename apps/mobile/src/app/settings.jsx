@@ -251,7 +251,7 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
               <View style={styles.aboutRow}>
                 <Text style={styles.aboutLabel}>Developed by</Text>
-                <Text style={styles.aboutValue}>Antigravity Agent</Text>
+                <Text style={styles.aboutValue}>Arham Awan</Text>
               </View>
             </View>
           </Animated.View>

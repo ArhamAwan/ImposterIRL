@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Dimensions, AccessibilityInfo } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  AccessibilityInfo,
+  TouchableOpacity,
+  Text,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -116,6 +123,31 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <PhaseTransition>
+        <TouchableOpacity
+          style={{
+            position: "absolute",
+            top: insets.top + 10,
+            left: 20,
+            zIndex: 999,
+            padding: 12,
+            backgroundColor: "rgba(255, 0, 0, 0.3)",
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.3)",
+          }}
+          onPress={() => router.push("/debug/showcase")}
+        >
+          <Text
+            style={{
+              color: "#FFF",
+              fontWeight: "bold",
+              fontSize: 12,
+            }}
+          >
+            DEV MODE
+          </Text>
+        </TouchableOpacity>
+
         {/* Animated Background with silhouettes - NO wrapper opacity */}
         <AnimatedBackground />
 

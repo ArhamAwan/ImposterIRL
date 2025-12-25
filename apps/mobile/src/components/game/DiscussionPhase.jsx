@@ -1,8 +1,16 @@
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { MessageSquare, Vote } from "lucide-react-native";
+import {
+  MessageSquare,
+  Vote,
+  Siren,
+  Megaphone,
+  AlertTriangle,
+  Lightbulb,
+  FastForward,
+} from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, {
   useSharedValue,
@@ -10,242 +18,213 @@ import Animated, {
   withRepeat,
   withTiming,
   withSequence,
+  withSpring,
   Easing,
   cancelAnimation,
+  FadeIn,
+  FadeInDown,
 } from "react-native-reanimated";
 
 import { AnimatedBackground } from "@/components/home/AnimatedBackground";
 import { GradientButton } from "@/components/home/GradientButton";
 import { GlitchText } from "@/components/effects/GlitchText";
-import { GlitchView } from "@/components/effects/GlitchView";
 import { colors } from "@/constants/imposterColors";
 import { formatTime } from "@/utils/gameHelpers";
 
-export function DiscussionPhase({
-  timeRemaining,
-  isHost,
-  onStartVoting,
-}) {
+const { width } = Dimensions.get("window");
+
+export function DiscussionPhase({ timeRemaining, isHost, onStartVoting }) {
   const insets = useSafeAreaInsets();
 
-  // Progressive shake animation
-  const shakeX = useSharedValue(0);
-  const timerScale = useSharedValue(1);
-  const timerGlow = useSharedValue(0.5);
+  // Animations
+  const heartbeatScale = useSharedValue(1);
+  const timerCircleScale = useSharedValue(1);
+  const emergencyOpacity = useSharedValue(0.5);
+  const backgroundRedOpacity = useSharedValue(0);
 
-  // Calculate shake intensity based on time remaining
-  const getShakeIntensity = () => {
-    if (timeRemaining > 60) return 0;
-    if (timeRemaining > 30) return 2;
-    if (timeRemaining > 10) return 5;
-    if (timeRemaining > 0) return 12;
-    return 0;
-  };
-
-  // Calculate shake speed based on time remaining
-  const getShakeSpeed = () => {
-    if (timeRemaining > 60) return 200;
-    if (timeRemaining > 30) return 150;
-    if (timeRemaining > 10) return 80;
-    if (timeRemaining > 0) return 40;
-    return 200;
-  };
-
-  // Get timer color based on time
-  const getTimerColor = () => {
-    if (timeRemaining <= 10) return colors.accent.red;
-    if (timeRemaining <= 30) return colors.accent.orange;
-    return colors.primary.purple;
-  };
+  // Determine urgency state
+  const isUrgent = timeRemaining <= 30;
+  const isCritical = timeRemaining <= 10;
+  const isEmergency = timeRemaining === 0;
 
   useEffect(() => {
-    const intensity = getShakeIntensity();
-    const speed = getShakeSpeed();
-
-    if (intensity > 0) {
-      // Progressive shake effect
-      shakeX.value = withRepeat(
+    // 1. CRITICAL HEARTBEAT EFFECT (Low Time)
+    if (isCritical && timeRemaining > 0) {
+      heartbeatScale.value = withRepeat(
         withSequence(
-          withTiming(intensity, { duration: speed, easing: Easing.linear }),
-          withTiming(-intensity, { duration: speed, easing: Easing.linear })
+          withTiming(1.05, {
+            duration: 100,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(1, { duration: 100, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.05, {
+            duration: 100,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }) // Pause
         ),
         -1,
         true
       );
 
-      // Pulsing timer when low on time
-      if (timeRemaining <= 10) {
-        timerScale.value = withRepeat(
-          withSequence(
-            withTiming(1.05, { duration: 300, easing: Easing.inOut(Easing.ease) }),
-            withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) })
-          ),
-          -1,
-          true
-        );
-      }
+      backgroundRedOpacity.value = withTiming(
+        0.3 + (10 - timeRemaining) * 0.05
+      );
 
-      // Haptic feedback at key moments
-      if (timeRemaining === 30 || timeRemaining === 10 || timeRemaining === 5) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      // Haptic Heartbeat
+      if (Math.floor(Date.now() / 1000) % 2 === 0) {
+        // Throttle haptics slightly
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
+    } else if (isUrgent) {
+      // Gentle pulse for urgency
+      backgroundRedOpacity.value = withTiming(0.1);
+      heartbeatScale.value = withRepeat(
+        withSequence(
+          withTiming(1.02, { duration: 1000 }),
+          withTiming(1, { duration: 1000 })
+        ),
+        -1,
+        true
+      );
     } else {
-      cancelAnimation(shakeX);
-      shakeX.value = withTiming(0, { duration: 100 });
+      // Normal state
+      heartbeatScale.value = withSpring(1);
+      backgroundRedOpacity.value = withTiming(0);
     }
 
-    // Glow animation
-    timerGlow.value = withRepeat(
-      withSequence(
-        withTiming(0.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-      ),
+    // 2. EMERGENCY LIGHTS
+    emergencyOpacity.value = withRepeat(
+      withTiming(isCritical ? 1 : 0.6, { duration: isCritical ? 300 : 1500 }),
       -1,
       true
     );
-  }, [timeRemaining]);
+  }, [isCritical, isUrgent, timeRemaining]);
 
-  const timerAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: shakeX.value },
-      { scale: timerScale.value }
-    ],
-    shadowOpacity: timerGlow.value,
-  }));
-
+  // Handle Voting Start
   const handleStartVoting = () => {
     if (!isHost) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onStartVoting();
   };
 
+  // Styled Components
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartbeatScale.value }],
+  }));
+
+  const bgStyle = useAnimatedStyle(() => ({
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.accent.red,
+    opacity: backgroundRedOpacity.value,
+    zIndex: 1,
+  }));
+
+  const getTimerColor = () => {
+    if (isCritical) return colors.accent.red;
+    if (isUrgent) return colors.accent.orange;
+    return colors.accent.teal; // Hi-tech feel
+  };
   const timerColor = getTimerColor();
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-
-      {/* Animated Background */}
       <AnimatedBackground />
 
-      {/* Red flash overlay when time is critical */}
-      {timeRemaining <= 10 && timeRemaining > 0 && (
-        <Animated.View 
-          style={[
-            styles.criticalOverlay,
-            { opacity: (10 - timeRemaining) * 0.03 }
-          ]} 
-          pointerEvents="none" 
-        />
-      )}
+      {/* Red Pulse Overlay for Low Time */}
+      <Animated.View style={bgStyle} pointerEvents="none" />
 
-      {/* Main content */}
-      <View style={styles.content}>
-      <View
-          style={[
-            styles.innerContent,
-            {
-          paddingTop: insets.top + 20,
-          paddingBottom: insets.bottom + 24,
-            },
-          ]}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <GlitchView intensity={0.4} frequency={5000}>
-              <MessageSquare size={24} color={colors.neutral.lightGray} />
-            </GlitchView>
-            <GlitchText
-              style={styles.headerText}
-              intensity={0.5}
-              frequency={4000}
-              corrupt={true}
-            >
-              Discussion Time
-            </GlitchText>
+      {/* Main Content */}
+      <Animated.View style={[styles.content, containerStyle]}>
+        {/* HEADER: EMERGENCY MEETING LOGO */}
+        <View style={[styles.header, { marginTop: insets.top + 20 }]}>
+          <View style={styles.headerIconContainer}>
+            <Siren size={32} color={colors.accent.red} />
+            <View
+              style={[styles.glowDot, { backgroundColor: colors.accent.red }]}
+            />
           </View>
+          <GlitchText
+            style={styles.headerTitle}
+            intensity={0.4}
+            frequency={3000}
+          >
+            EMERGENCY MEETING
+          </GlitchText>
+        </View>
 
-          {/* Timer Circle */}
-          <View style={styles.timerSection}>
-            <Animated.View
-              style={[
-                styles.timerCircle,
-                {
-                  borderColor: timerColor,
-                  shadowColor: timerColor,
-                },
-                timerAnimatedStyle,
-              ]}
-            >
-              <Text style={[styles.timerText, { color: timerColor }]}>
-              {formatTime(timeRemaining)}
+        {/* CENTER: TIMER DISK */}
+        <View style={styles.timerContainer}>
+          {/* Outer Ring */}
+          <View style={[styles.outerRing, { borderColor: timerColor }]}>
+            {/* Inner Ring */}
+            <View style={styles.innerRing}>
+              <Text style={[styles.timerValue, { color: timerColor }]}>
+                {formatTime(timeRemaining)}
               </Text>
-              {timeRemaining <= 10 && timeRemaining > 0 && (
-                <Text style={styles.hurryText}>HURRY!</Text>
-              )}
-            </Animated.View>
+              <Text style={styles.timerLabel}>
+                {isCritical ? "CRITICAL" : "REMAINING"}
+              </Text>
+            </View>
+          </View>
 
-            {/* Time status message */}
-            <Text style={styles.statusText}>
-              {timeRemaining > 60
-                ? "Take your time discussing"
-                : timeRemaining > 30
-                  ? "Discussion winding down..."
-                  : timeRemaining > 10
-                    ? "Wrap up your discussion!"
-                    : timeRemaining > 0
-                      ? "⚠️ Almost out of time!"
-                      : "Time's up!"}
-            </Text>
+          {/* Critical Warning Label */}
+          {isCritical && (
+            <Animated.View
+              entering={FadeInDown.springify()}
+              style={styles.criticalBadge}
+            >
+              <AlertTriangle size={16} color="#FFF" />
+              <Text style={styles.criticalText}>SYSTEM CRITICAL</Text>
+            </Animated.View>
+          )}
         </View>
 
-          {/* Rules Card */}
-          <View style={styles.rulesCard}>
-            <Text style={styles.rulesTitle}>💬 Discussion Rules</Text>
-            <View style={styles.rulesList}>
-              <Text style={styles.ruleItem}>
-              • Put your phones face-down during discussion
-            </Text>
-              <Text style={styles.ruleItem}>
-              • Ask questions and give clues about the word
-            </Text>
-              <Text style={styles.ruleItem}>
-              • Don't say the word directly!
-            </Text>
-              <Text style={styles.ruleItem}>
-              • Everyone must participate
+        {/* BOTTOM: TACTICAL INFO */}
+        <View style={styles.infoSection}>
+          <Text style={styles.discussionPrompt}>WHO IS THE IMPOSTER?</Text>
+
+          {/* Discussion Tips Carousel */}
+          <View style={styles.tipCard}>
+            <Lightbulb
+              size={20}
+              color={colors.accent.orangeLight}
+              style={{ marginBottom: 8 }}
+            />
+            <Text style={styles.tipText}>
+              "Check if anyone is staying silent or agreeing too quickly."
             </Text>
           </View>
         </View>
 
-          {/* Start Voting Button (host only, when time is up) */}
-          {isHost && (
-            <View style={styles.buttonContainer}>
-              <GradientButton
-                variant={timeRemaining === 0 ? "primary" : "secondary"}
-            onPress={handleStartVoting}
-                icon={<Vote size={20} color={colors.neutral.white} />}
-                accessibilityLabel="Start the voting phase"
-                accessibilityHint="Begin voting for the imposter"
-                style={styles.voteButton}
-                disabled={timeRemaining > 0}
-              >
-                {timeRemaining === 0 ? "Start Voting" : `Voting in ${formatTime(timeRemaining)}`}
-              </GradientButton>
-            </View>
-          )}
-
-          {!isHost && (
-            <View style={styles.waitingContainer}>
-              <Text style={styles.waitingText}>
-                {timeRemaining === 0
-                  ? "Waiting for host to start voting..."
-                  : "Discuss with your group!"}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+          {isHost ? (
+            <GradientButton
+              variant={isEmergency ? "primary" : "secondary"}
+              onPress={handleStartVoting}
+              icon={
+                isEmergency ? (
+                  <Vote size={24} color="#FFF" />
+                ) : (
+                  <FastForward size={20} color="#FFF" />
+                )
+              }
+              style={{ opacity: 1 }}
+            >
+              {isEmergency
+                ? "INITIATE VOTE"
+                : `FORCE VOTE NOW (${timeRemaining}s)`}
+            </GradientButton>
+          ) : (
+            <Text style={styles.waitingText}>
+              {isEmergency
+                ? "Waiting for Host to start vote..."
+                : "Discuss with your crew"}
             </Text>
-            </View>
-        )}
+          )}
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -255,105 +234,142 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.dark,
   },
-  criticalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.accent.red,
-    zIndex: 50,
-  },
   content: {
     flex: 1,
-    zIndex: 2,
-  },
-  innerContent: {
-    flex: 1,
-    paddingHorizontal: 24,
+    zIndex: 10,
+    justifyContent: "space-between",
   },
   header: {
-    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255, 87, 87, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.accent.red,
+  },
+  headerTitle: {
+    fontFamily: "Poppins_900Black",
+    fontSize: 22,
+    color: "#FFF",
+    letterSpacing: 2,
+    textAlign: "center",
+  },
+  glowDot: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    top: 10,
+    right: 15,
+    shadowColor: colors.accent.red,
+    shadowOpacity: 1,
+    shadowRadius: 10,
+  },
+  // TIMER STYLES
+  timerContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
-    gap: 10,
+    height: 300,
   },
-  headerText: {
-    fontSize: 20,
-    fontFamily: "Poppins_600SemiBold",
-    color: colors.neutral.white,
-  },
-  timerSection: {
+  outerRing: {
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 32,
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
-  timerCircle: {
+  innerRing: {
     width: 200,
     height: 200,
     borderRadius: 100,
     borderWidth: 4,
+    borderColor: "rgba(255,255,255,0.1)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.background.dark,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 25,
+    backgroundColor: colors.background.darker,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
     elevation: 10,
   },
-  timerText: {
-    fontSize: 56,
+  timerValue: {
     fontFamily: "Poppins_700Bold",
-    marginTop: 8,
+    fontSize: 64,
+    fontVariant: ["tabular-nums"],
   },
-  hurryText: {
-    fontSize: 14,
-    fontFamily: "Poppins_700Bold",
-    color: colors.accent.red,
-    letterSpacing: 2,
-    marginTop: 4,
-  },
-  statusText: {
-    fontSize: 15,
+  timerLabel: {
     fontFamily: "Poppins_500Medium",
-    color: colors.neutral.lightGray,
-    marginTop: 20,
-    textAlign: "center",
+    fontSize: 12,
+    color: colors.neutral.midGray,
+    letterSpacing: 2,
+    marginTop: -5,
   },
-  rulesCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+  criticalBadge: {
+    position: "absolute",
+    bottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.accent.red,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
+    gap: 6,
   },
-  rulesTitle: {
-    fontSize: 18,
-    fontFamily: "Poppins_600SemiBold",
-    color: colors.neutral.white,
-    marginBottom: 16,
+  criticalText: {
+    color: "#FFF",
+    fontFamily: "Poppins_700Bold",
+    fontSize: 12,
+    letterSpacing: 1,
   },
-  rulesList: {
-    gap: 10,
-  },
-  ruleItem: {
-    fontSize: 14,
-    fontFamily: "Poppins_400Regular",
-    color: colors.neutral.lightGray,
-    lineHeight: 22,
-  },
-  buttonContainer: {
-    marginTop: "auto",
-    marginBottom: 20,
-  },
-  voteButton: {
-    width: "100%",
-  },
-  waitingContainer: {
-    marginTop: "auto",
-    marginBottom: 40,
+  // INFO SECTION
+  infoSection: {
+    paddingHorizontal: 30,
     alignItems: "center",
   },
-  waitingText: {
-    fontSize: 15,
-    fontFamily: "Poppins_400Regular",
-    color: colors.neutral.midGray,
+  discussionPrompt: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 18,
+    color: "#FFF",
+    marginBottom: 16,
     textAlign: "center",
+    textShadowColor: colors.accent.red,
+    textShadowRadius: 10,
+  },
+  tipCard: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 16,
+    padding: 20,
+    width: "100%",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  tipText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: colors.neutral.lightGray,
+    textAlign: "center",
+    lineHeight: 20,
+    fontStyle: "italic",
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  waitingText: {
+    textAlign: "center",
+    color: colors.neutral.midGray,
+    fontFamily: "Poppins_400Regular",
   },
 });

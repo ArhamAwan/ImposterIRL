@@ -38,7 +38,9 @@ export function VotingPhase({
   const [pendingVote, setPendingVote] = useState(null);
 
   // Get list of player IDs who have already voted
-  const playersWhoVoted = votes?.map((v) => v.voter_id) || [];
+  // Handle potential non-array votes structure
+  const votesArray = Array.isArray(votes) ? votes : Object.values(votes || {});
+  const playersWhoVoted = votesArray.map((v) => v.voter_id);
   const hasCurrentPlayerVoted = playersWhoVoted.includes(currentPlayerId);
   const totalPlayers = activePlayers.length;
   const votedCount = playersWhoVoted.length;
@@ -334,7 +336,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
-    elevation: 10,
+    // elevation removed to prevent dark background artifact on Android
   },
   playerCardDisabled: {
     opacity: 0.5,

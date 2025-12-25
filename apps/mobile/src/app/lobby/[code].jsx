@@ -35,6 +35,14 @@ import { AnimatedBackground } from "@/components/home/AnimatedBackground";
 import { GradientButton } from "@/components/home/GradientButton";
 import { GlitchText } from "@/components/effects/GlitchText";
 import { GlitchView } from "@/components/effects/GlitchView";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  FadeIn,
+} from "react-native-reanimated";
 import { colors } from "@/constants/imposterColors";
 import { getPlayerData, clearGameData } from "@/utils/gameStorage";
 import { apiUrl } from "@/constants/api";
@@ -56,7 +64,23 @@ export default function LobbyWaitingRoom() {
   const [selectedCategory, setSelectedCategory] = useState("Animals");
   const [roundDuration, setRoundDuration] = useState(300);
   const [totalRounds, setTotalRounds] = useState(3);
-  const [isStarting, setIsStarting] = useState(false);
+
+  const pulseOpacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    pulseOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1500 }),
+        withTiming(0.4, { duration: 1500 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulseOpacity.value,
+  }));
 
   useEffect(() => {
     loadPlayerData();
@@ -119,7 +143,6 @@ export default function LobbyWaitingRoom() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setIsStarting(true);
 
     try {
       const response = await fetch(apiUrl("/api/lobby/start"), {
@@ -141,8 +164,6 @@ export default function LobbyWaitingRoom() {
     } catch (error) {
       console.error("Error starting game:", error);
       Alert.alert("Error", "Failed to start game. Please try again.");
-    } finally {
-      setIsStarting(false);
     }
   };
 
@@ -387,14 +408,14 @@ export default function LobbyWaitingRoom() {
 
             {/* Non-host waiting message */}
             {!currentPlayer?.isHost && (
-              <View style={styles.waitingCard}>
+              <Animated.View style={[styles.waitingCard, pulseStyle]}>
                 <GlitchView intensity={0.4} frequency={5000}>
                   <Text style={styles.waitingTitle}>Waiting for Host</Text>
                 </GlitchView>
                 <Text style={styles.waitingSubtitle}>
                   The host will start the game when everyone is ready
                 </Text>
-              </View>
+              </Animated.View>
             )}
           </ScrollView>
 
@@ -413,7 +434,6 @@ export default function LobbyWaitingRoom() {
                   />
                 }
                 style={styles.startButton}
-                loading={isStarting}
               >
                 {canStartGame
                   ? "Start Game"

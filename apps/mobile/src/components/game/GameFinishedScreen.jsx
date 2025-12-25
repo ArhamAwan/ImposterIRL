@@ -1,8 +1,22 @@
 import React, { useEffect } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Trophy, User, Target, Skull, Home, Crown } from "lucide-react-native";
+import {
+  Trophy,
+  User,
+  Target,
+  Skull,
+  Home,
+  Crown,
+  RefreshCw,
+} from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, {
   useSharedValue,
@@ -10,13 +24,15 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
-  withRepeat,
+  withSpring,
   Easing,
+  BounceIn,
+  FadeInDown,
 } from "react-native-reanimated";
 
 import { AnimatedBackground } from "@/components/home/AnimatedBackground";
+import { GradientButton } from "@/components/home/GradientButton";
 import { GlitchText } from "@/components/effects/GlitchText";
-import { GlitchView } from "@/components/effects/GlitchView";
 import { colors } from "@/constants/imposterColors";
 
 const GOLD = "#FFD700";
@@ -25,235 +41,225 @@ const BRONZE = "#CD7F32";
 
 export function GameFinishedScreen({ sortedScores, onEndGame }) {
   const insets = useSafeAreaInsets();
-  const winner = sortedScores?.[0];
 
-  // Animation values
-  const trophyScale = useSharedValue(0);
-  const trophyRotate = useSharedValue(0);
-  const winnerOpacity = useSharedValue(0);
-  const scoresOpacity = useSharedValue(0);
-  const glowOpacity = useSharedValue(0.5);
+  // Top 3 players
+  const winner = sortedScores?.[0];
+  const second = sortedScores?.[1];
+  const third = sortedScores?.[2];
+  const others = sortedScores?.slice(3) || [];
+
+  // Shared Values for sequencing
+  const headerOpacity = useSharedValue(0);
+  const podiumScale = useSharedValue(0.8);
+  const podiumOpacity = useSharedValue(0);
+  const listOpacity = useSharedValue(0);
+  const listTranslateY = useSharedValue(50);
 
   useEffect(() => {
-    // Dramatic entrance animation
-    trophyScale.value = withSequence(
-      withTiming(1.3, { duration: 500, easing: Easing.out(Easing.back) }),
-      withTiming(1, { duration: 300 })
-    );
-
-    trophyRotate.value = withSequence(
-      withTiming(-5, { duration: 100 }),
-      withTiming(5, { duration: 200 }),
-      withTiming(0, { duration: 150 })
-    );
-
-    winnerOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
-    scoresOpacity.value = withDelay(700, withTiming(1, { duration: 500 }));
-
-    // Continuous glow animation
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.8, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.4, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-
-    // Celebration haptic
+    // Initial celebration haptic
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Sequence animations
+    headerOpacity.value = withTiming(1, { duration: 600 });
+
+    // Podium entrance (pop in)
+    podiumOpacity.value = withDelay(300, withTiming(1, { duration: 500 }));
+    podiumScale.value = withDelay(300, withSpring(1));
+
+    // List entrance (slide up)
+    listOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
+    listTranslateY.value = withDelay(800, withSpring(0));
   }, []);
 
-  const trophyAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: trophyScale.value },
-      { rotate: `${trophyRotate.value}deg` },
-    ],
-  }));
-
-  const glowAnimatedStyle = useAnimatedStyle(() => ({
-    shadowOpacity: glowOpacity.value,
-  }));
-
-  const winnerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: winnerOpacity.value,
-  }));
-
-  const scoresAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: scoresOpacity.value,
-  }));
-
   const handleEndGame = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onEndGame();
   };
 
-  const getRankColor = (index) => {
-    if (index === 0) return GOLD;
-    if (index === 1) return SILVER;
-    if (index === 2) return BRONZE;
-    return colors.neutral.lightGray;
-  };
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+  }));
 
-  const getRankBgColor = (index) => {
-    if (index === 0) return "rgba(255, 215, 0, 0.2)";
-    if (index === 1) return "rgba(192, 192, 192, 0.2)";
-    if (index === 2) return "rgba(205, 127, 50, 0.2)";
-    return "rgba(255, 255, 255, 0.1)";
-  };
+  const podiumContainerStyle = useAnimatedStyle(() => ({
+    opacity: podiumOpacity.value,
+    transform: [{ scale: podiumScale.value }],
+  }));
+
+  const listContainerStyle = useAnimatedStyle(() => ({
+    opacity: listOpacity.value,
+    transform: [{ translateY: listTranslateY.value }],
+  }));
+
+  const PodiumItem = ({ player, rank, color, height }) => (
+    <View style={[styles.podiumItem, { height, marginTop: -height / 2 }]}>
+      <View style={[styles.avatarContainer, { borderColor: color }]}>
+        <View
+          style={[
+            styles.avatar,
+            { backgroundColor: player?.player?.avatar_color || "#333" },
+          ]}
+        >
+          <User size={32} color="#FFF" />
+        </View>
+        <View style={[styles.rankBadge, { backgroundColor: color }]}>
+          <Text style={styles.rankText}>{rank}</Text>
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.podiumBase,
+          { borderColor: color, backgroundColor: `${color}20` },
+        ]}
+      >
+        <Text style={styles.podiumName} numberOfLines={1}>
+          {player?.player?.name}
+        </Text>
+        <Text style={styles.podiumScore}>{player?.total_score}</Text>
+        <Text style={styles.podiumPts}>pts</Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-
-      {/* Animated Background */}
-      <AnimatedBackground style={{ zIndex: -1 }} />
-
-      {/* Gold celebration overlay */}
-      <View style={styles.celebrationOverlay} pointerEvents="none" />
+      <AnimatedBackground />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 40,
+            paddingTop: insets.top + 20,
             paddingBottom: insets.bottom + 120,
           },
         ]}
-        keyboardShouldPersistTaps="handled"
       >
-        {/* Trophy Section */}
-        <View style={styles.trophySection}>
-          <GlitchView intensity={0.5} frequency={4000}>
-            <Animated.View
-              style={[
-                styles.trophyContainer,
-                trophyAnimatedStyle,
-                glowAnimatedStyle,
-              ]}
-            >
-              <Trophy size={64} color={GOLD} />
-            </Animated.View>
-          </GlitchView>
-
-          <GlitchText
-            style={styles.gameOverTitle}
-            intensity={0.6}
-            frequency={3000}
-            corrupt={true}
-          >
-            Game Over!
+        {/* HEADER */}
+        <Animated.View style={[styles.header, headerStyle]}>
+          <Trophy size={48} color={GOLD} style={styles.headerIcon} />
+          <GlitchText style={styles.title} intensity={0.5}>
+            VICTORY!
           </GlitchText>
-        </View>
+          <Text style={styles.subtitle}>The results are in...</Text>
+        </Animated.View>
 
-        {/* Winner Card */}
-        {winner && (
-          <Animated.View style={[styles.winnerCard, winnerAnimatedStyle]}>
-            <View style={styles.winnerBadge}>
-              <Crown size={20} color={GOLD} />
-            </View>
-            <Text style={styles.winnerLabel}>Champion</Text>
+        {/* PODIUM SECTION */}
+        <Animated.View style={[styles.podiumContainer, podiumContainerStyle]}>
+          {/* 2nd Place */}
+          {second && (
+            <PodiumItem player={second} rank="2" color={SILVER} height={140} />
+          )}
 
-            <View style={styles.winnerInfo}>
+          {/* 1st Place (Winner) */}
+          {winner && (
+            <View style={[styles.podiumItem, styles.winnerPodium]}>
+              <View style={styles.crownContainer}>
+                <Crown size={32} color={GOLD} />
+              </View>
               <View
                 style={[
+                  styles.avatarContainer,
                   styles.winnerAvatar,
-                  { backgroundColor: winner.player?.avatar_color },
+                  { borderColor: GOLD },
                 ]}
               >
-                <User size={32} color="#000" />
-              </View>
-              <Text style={styles.winnerName}>{winner.player?.name}</Text>
-            </View>
-
-            <Text style={styles.winnerScore}>{winner.total_score}</Text>
-            <Text style={styles.winnerScoreLabel}>points</Text>
-          </Animated.View>
-        )}
-
-        {/* Leaderboard Card */}
-        <Animated.View style={[styles.leaderboardCard, scoresAnimatedStyle]}>
-          <Text style={styles.leaderboardTitle}>Final Leaderboard</Text>
-
-          {sortedScores?.map((score, index) => (
-            <View
-              key={score.player_id}
-              style={[styles.scoreRow, index > 0 && styles.scoreRowBorder]}
-            >
-              {/* Rank Badge */}
-              <View
-                style={[
-                  styles.rankBadge,
-                  { backgroundColor: getRankBgColor(index) },
-                ]}
-              >
-                <Text style={[styles.rankText, { color: getRankColor(index) }]}>
-                  {index + 1}
-                </Text>
-              </View>
-
-              {/* Player Avatar */}
-              <View
-                style={[
-                  styles.playerAvatar,
-                  { backgroundColor: score.player?.avatar_color },
-                ]}
-              >
-                <User size={20} color="#000" />
-              </View>
-
-              {/* Player Info */}
-              <View style={styles.playerInfo}>
-                <Text style={styles.playerName}>{score.player?.name}</Text>
-                <View style={styles.statsRow}>
-                  <View style={styles.statItem}>
-                    <Target size={12} color={colors.accent.green} />
-                    <Text style={styles.statText}>
-                      {score.correct_votes || 0}
-                    </Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Skull size={12} color={colors.accent.red} />
-                    <Text style={styles.statText}>
-                      {score.survived_as_imposter || 0}
-                    </Text>
-                  </View>
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      backgroundColor: winner?.player?.avatar_color || "#333",
+                      width: 80,
+                      height: 80,
+                    },
+                  ]}
+                >
+                  <User size={40} color="#FFF" />
+                </View>
+                <View style={[styles.rankBadge, styles.winnerBadge]}>
+                  <Text style={styles.rankText}>1</Text>
                 </View>
               </View>
 
-              {/* Score */}
-              <View style={styles.scoreContainer}>
+              <View style={[styles.podiumBase, styles.winnerBase]}>
                 <Text
-                  style={[styles.scoreValue, index === 0 && { color: GOLD }]}
+                  style={[styles.podiumName, styles.winnerName]}
+                  numberOfLines={1}
                 >
-                  {score.total_score || 0}
+                  {winner?.player?.name}
                 </Text>
-                <Text style={styles.scorePts}>pts</Text>
+                <Text style={[styles.podiumScore, styles.winnerScore]}>
+                  {winner?.total_score}
+                </Text>
+                <Text style={styles.podiumPts}>POINTS</Text>
               </View>
             </View>
-          ))}
+          )}
 
-          {/* Legend */}
-          <View style={styles.legendContainer}>
-            <View style={styles.legendItem}>
-              <Target size={14} color={colors.accent.green} />
-              <Text style={styles.legendText}>Correct votes</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <Skull size={14} color={colors.accent.red} />
-              <Text style={styles.legendText}>Survived as imposter</Text>
-            </View>
-          </View>
+          {/* 3rd Place */}
+          {third && (
+            <PodiumItem player={third} rank="3" color={BRONZE} height={120} />
+          )}
         </Animated.View>
+
+        {/* REMAINING PLAYERS LIST */}
+        {others.length > 0 && (
+          <Animated.View style={[styles.listContainer, listContainerStyle]}>
+            <Text style={styles.listTitle}>Runners Up</Text>
+            {others.map((score, index) => (
+              <View key={score.player_id} style={styles.listItem}>
+                <View style={styles.listRank}>
+                  <Text style={styles.listRankText}>{index + 4}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.listAvatar,
+                    { backgroundColor: score.player?.avatar_color },
+                  ]}
+                >
+                  <User size={16} color="#FFF" />
+                </View>
+
+                <View style={styles.listInfo}>
+                  <Text style={styles.listName}>{score.player?.name}</Text>
+                  <View style={styles.listStats}>
+                    {/* Stats: Correct Votes & Imposter Survival */}
+                    <View style={styles.miniStat}>
+                      <Target size={10} color={colors.accent.green} />
+                      <Text style={styles.miniStatText}>
+                        {score.correct_votes || 0}
+                      </Text>
+                    </View>
+                    <View style={styles.miniStat}>
+                      <Skull size={10} color={colors.accent.red} />
+                      <Text style={styles.miniStatText}>
+                        {score.survived_as_imposter || 0}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.listScoreContainer}>
+                  <Text style={styles.listScore}>{score.total_score}</Text>
+                  <Text style={styles.listPts}>pts</Text>
+                </View>
+              </View>
+            ))}
+          </Animated.View>
+        )}
       </ScrollView>
 
-      {/* Bottom Bar with Button - Outside ScrollView */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
-        <Pressable onPress={handleEndGame} style={styles.mainMenuButton}>
-          <Home size={20} color={colors.neutral.white} />
-          <Text style={styles.mainMenuButtonText}>Back to Main Menu</Text>
-        </Pressable>
+      {/* FOOTER ACTIONS */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
+        <GradientButton
+          variant="primary"
+          onPress={handleEndGame}
+          icon={<Home size={24} color="#FFF" />}
+          style={styles.homeButton}
+        >
+          Back to Lobby
+        </GradientButton>
       </View>
     </View>
   );
@@ -264,235 +270,228 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.dark,
   },
-  celebrationOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 215, 0, 0.03)",
-    zIndex: 1,
-  },
   scrollView: {
     flex: 1,
-    zIndex: 2,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-  },
-  trophySection: {
+    paddingHorizontal: 20,
     alignItems: "center",
-    marginBottom: 24,
   },
-  trophyContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 215, 0, 0.15)",
-    borderWidth: 3,
-    borderColor: GOLD,
+  header: {
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 40,
+  },
+  headerIcon: {
+    marginBottom: 10,
     shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 25,
+    shadowRadius: 20,
+    shadowOpacity: 0.5,
   },
-  gameOverTitle: {
-    fontSize: 36,
-    fontFamily: "Poppins_700Bold",
-    color: colors.neutral.white,
-    textAlign: "center",
-  },
-  winnerCard: {
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderWidth: 2,
-    borderColor: "rgba(255, 215, 0, 0.4)",
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 24,
-    alignItems: "center",
-    shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-  },
-  winnerBadge: {
-    position: "absolute",
-    top: -16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background.dark,
-    borderWidth: 2,
-    borderColor: GOLD,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  winnerLabel: {
-    fontSize: 14,
-    fontFamily: "Poppins_500Medium",
-    color: GOLD,
+  title: {
+    fontFamily: "Poppins_900Black",
+    fontSize: 42,
+    color: "#FFF",
     letterSpacing: 2,
-    textTransform: "uppercase",
-    marginBottom: 16,
-    marginTop: 8,
+    textShadowColor: "rgba(255, 215, 0, 0.5)",
+    textShadowRadius: 10,
   },
-  winnerInfo: {
+  subtitle: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: "rgba(255,255,255,0.6)",
+  },
+  // PODIUM
+  podiumContainer: {
     flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 40,
+    height: 300,
+  },
+  podiumItem: {
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "flex-end",
+    // width is handled inline for responsiveness
+  },
+  winnerPodium: {
+    zIndex: 10,
+    // width is handled inline
+  },
+  avatarContainer: {
+    marginBottom: -20,
+    zIndex: 5,
+    alignItems: "center",
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FFF",
   },
   winnerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  winnerName: {
-    fontSize: 24,
-    fontFamily: "Poppins_700Bold",
-    color: colors.neutral.white,
-  },
-  winnerScore: {
-    fontSize: 56,
-    fontFamily: "Poppins_700Bold",
-    color: GOLD,
-    lineHeight: 64,
-  },
-  winnerScoreLabel: {
-    fontSize: 16,
-    fontFamily: "Poppins_500Medium",
-    color: colors.neutral.lightGray,
-    marginTop: -4,
-  },
-  leaderboardCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-  },
-  leaderboardTitle: {
-    fontSize: 18,
-    fontFamily: "Poppins_600SemiBold",
-    color: colors.neutral.white,
-    marginBottom: 20,
-  },
-  scoreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-  },
-  scoreRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    marginBottom: -30,
   },
   rankBadge: {
+    position: "absolute",
+    bottom: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.background.dark,
+  },
+  winnerBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    backgroundColor: GOLD,
+    bottom: -10,
   },
   rankText: {
-    fontSize: 16,
     fontFamily: "Poppins_700Bold",
+    fontSize: 12,
+    color: colors.background.dark,
   },
-  playerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  crownContainer: {
+    marginBottom: 8,
+  },
+  podiumBase: {
+    width: "100%",
+    height: "100%",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderBottomWidth: 0,
     alignItems: "center",
-    justifyContent: "center",
+    paddingTop: 30,
+    paddingHorizontal: 4,
+  },
+  winnerBase: {
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    borderColor: GOLD,
+    height: 180,
+    paddingTop: 40,
+  },
+  podiumName: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: "#FFF",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  winnerName: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  podiumScore: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
+    color: "#FFF",
+  },
+  winnerScore: {
+    fontSize: 32,
+    color: GOLD,
+  },
+  podiumPts: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.5)",
+  },
+  // LIST
+  listContainer: {
+    width: "100%",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 20,
+    padding: 20,
+  },
+  listTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  listItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  listRank: {
+    width: 24,
+    alignItems: "center",
     marginRight: 12,
   },
-  playerInfo: {
-    flex: 1,
-  },
-  playerName: {
-    fontSize: 16,
-    fontFamily: "Poppins_600SemiBold",
-    color: colors.neutral.white,
-    marginBottom: 4,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  statText: {
-    fontSize: 12,
-    fontFamily: "Poppins_500Medium",
-    color: colors.neutral.lightGray,
-  },
-  scoreContainer: {
-    alignItems: "flex-end",
-  },
-  scoreValue: {
-    fontSize: 24,
+  listRankText: {
     fontFamily: "Poppins_700Bold",
-    color: colors.neutral.white,
+    color: "rgba(255,255,255,0.5)",
   },
-  scorePts: {
-    fontSize: 11,
-    fontFamily: "Poppins_500Medium",
-    color: colors.neutral.midGray,
-    marginTop: -2,
-  },
-  legendContainer: {
-    flexDirection: "row",
+  listAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
-    gap: 24,
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-  },
-  legendItem: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    marginRight: 12,
   },
-  legendText: {
-    fontSize: 12,
-    fontFamily: "Poppins_400Regular",
-    color: colors.neutral.midGray,
+  listName: {
+    fontFamily: "Poppins_500Medium",
+    color: "#FFF",
+    fontSize: 14,
   },
-  buttonContainer: {
-    marginTop: 8,
+  listScore: {
+    fontFamily: "Poppins_700Bold",
+    color: "#FFF",
   },
-  endButton: {
-    width: "100%",
-  },
-  bottomBar: {
+  // FOOTER
+  footer: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    paddingTop: 16,
     paddingHorizontal: 24,
+    paddingTop: 20,
     backgroundColor: colors.background.dark,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    zIndex: 10,
+    borderTopColor: "rgba(255,255,255,0.1)",
   },
-  mainMenuButton: {
+  homeButton: {
+    width: "100%",
+  },
+  listInfo: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  listStats: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 2,
+  },
+  miniStat: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: colors.primary.purple,
+    gap: 3,
   },
-  mainMenuButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.neutral.white,
+  miniStatText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.5)",
+  },
+  listScoreContainer: {
+    alignItems: "flex-end",
+  },
+  listPts: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 8,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: -2,
   },
 });

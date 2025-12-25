@@ -237,10 +237,11 @@ export function AppLogo({ style, logoStyle, titleStyle, taglineStyle }) {
       { scale: scaryScale.value },
       { translateX: scaryChromaticOffset.value * 0.5 },
     ],
-    shadowColor: "#ff0000",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: scaryGlow.value,
-    shadowRadius: 30,
+    transform: [
+      { scale: scaryScale.value },
+      { translateX: scaryChromaticOffset.value * 0.5 },
+    ],
+    // Removed shadow props to prevent artifacts and rely on scaryGlow view
   }));
 
   const flashStyle = useAnimatedStyle(() => ({
@@ -394,10 +395,10 @@ const styles = StyleSheet.create({
   },
   darkOverlay: {
     position: "absolute",
-    top: -200,
-    left: -200,
-    right: -200,
-    bottom: -200,
+    width: 4000,
+    height: 4000,
+    top: -2000,
+    left: -2000,
     backgroundColor: "#000000",
     zIndex: -1,
   },
