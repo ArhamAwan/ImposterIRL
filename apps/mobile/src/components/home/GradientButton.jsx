@@ -42,22 +42,12 @@ export function GradientButton({
   const borderOpacity = useSharedValue(0.3);
   const shimmerPosition = useSharedValue(0);
 
-  // Pulsing glow effect for primary button
-  useEffect(() => {
-    if (variant === "primary") {
-      glowOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.6, {
-            duration: 1250,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(0.3, { duration: 1250, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
-    }
-  }, [variant]);
+  // Pulsing glow effect removed to fix artifact
+  // useEffect(() => {
+  //   if (variant === "primary") {
+  //     glowOpacity.value = withRepeat(...)
+  //   }
+  // }, [variant]);
 
   // Shimmer effect for secondary button border
   useEffect(() => {
@@ -171,11 +161,12 @@ export function GradientButton({
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           disabled={disabled || loading}
+          style={{ borderRadius: 16 }}
           accessibilityLabel={accessibilityLabel}
           accessibilityHint={accessibilityHint}
           accessibilityRole="button"
         >
-          <Animated.View style={[styles.primaryShadow, animatedGlowStyle]}>
+          <Animated.View style={[styles.primaryShadow]}>
             <LinearGradient
               colors={gradients.primaryButton}
               style={styles.primaryButton}
@@ -238,10 +229,8 @@ export function GradientButton({
 const styles = StyleSheet.create({
   primaryShadow: {
     borderRadius: 16,
-    shadowColor: colors.primary.purple,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 24,
-    elevation: 8,
+    // Removed shadows to fix black box artifact
+    backgroundColor: colors.primary.purple, // Fallback
   },
   primaryButton: {
     height: 64,
@@ -268,6 +257,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    backgroundColor: "transparent", // Force transparent container
   },
   icon: {
     marginRight: 2,

@@ -13,19 +13,21 @@ import { User, Check, AlertTriangle, Target } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
-import { AnimatedBackground } from "@/components/home/AnimatedBackground";
+// AnimatedBackground handled globally
 import { GradientButton } from "@/components/home/GradientButton";
 import { GlitchText } from "@/components/effects/GlitchText";
 import { GlitchView } from "@/components/effects/GlitchView";
 import { GhostCrewmate } from "@/components/svg/Crewmates";
 import { colors } from "@/constants/imposterColors";
 
-const { width } = Dimensions.get("window");
+const { width: windowWidth } = Dimensions.get("window");
+const MAX_CONTENT_WIDTH = 480;
+const effectiveWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
 const COLUMN_GAP = 12;
-const CARD_WIDTH = (width - 48 - COLUMN_GAP) / 2;
+const CARD_WIDTH = (effectiveWidth - 48 - COLUMN_GAP) / 2;
 
 export function VotingPhase({
-  activePlayers,
+  activePlayers = [],
   votes,
   selectedVote,
   isEliminated,
@@ -79,7 +81,7 @@ export function VotingPhase({
       <StatusBar style="light" />
 
       {/* Animated Background */}
-      <AnimatedBackground style={{ zIndex: -1 }} />
+      {/* AnimatedBackground handled by _layout */}
 
       <View style={[styles.headerContainer, { paddingTop: insets.top + 10 }]}>
         <View style={styles.statsRow}>

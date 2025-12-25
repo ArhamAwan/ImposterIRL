@@ -116,7 +116,7 @@ export default function DebugShowcase() {
             onClose={() => setCurrentView(null)}
           >
             <VotingPhase
-              players={MOCK_PLAYERS}
+              activePlayers={MOCK_PLAYERS}
               timeLeft={30}
               onVote={(id) => alert(`Voted for ${id}`)}
               hasVoted={false}

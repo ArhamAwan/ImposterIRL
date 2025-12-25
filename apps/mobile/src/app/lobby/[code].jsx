@@ -35,14 +35,6 @@ import { AnimatedBackground } from "@/components/home/AnimatedBackground";
 import { GradientButton } from "@/components/home/GradientButton";
 import { GlitchText } from "@/components/effects/GlitchText";
 import { GlitchView } from "@/components/effects/GlitchView";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSequence,
-  FadeIn,
-} from "react-native-reanimated";
 import { colors } from "@/constants/imposterColors";
 import { getPlayerData, clearGameData } from "@/utils/gameStorage";
 import { apiUrl } from "@/constants/api";
@@ -64,23 +56,6 @@ export default function LobbyWaitingRoom() {
   const [selectedCategory, setSelectedCategory] = useState("Animals");
   const [roundDuration, setRoundDuration] = useState(300);
   const [totalRounds, setTotalRounds] = useState(3);
-
-  const pulseOpacity = useSharedValue(0.4);
-
-  useEffect(() => {
-    pulseOpacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1500 }),
-        withTiming(0.4, { duration: 1500 })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    opacity: pulseOpacity.value,
-  }));
 
   useEffect(() => {
     loadPlayerData();
@@ -408,14 +383,14 @@ export default function LobbyWaitingRoom() {
 
             {/* Non-host waiting message */}
             {!currentPlayer?.isHost && (
-              <Animated.View style={[styles.waitingCard, pulseStyle]}>
+              <View style={styles.waitingCard}>
                 <GlitchView intensity={0.4} frequency={5000}>
                   <Text style={styles.waitingTitle}>Waiting for Host</Text>
                 </GlitchView>
                 <Text style={styles.waitingSubtitle}>
                   The host will start the game when everyone is ready
                 </Text>
-              </Animated.View>
+              </View>
             )}
           </ScrollView>
 
