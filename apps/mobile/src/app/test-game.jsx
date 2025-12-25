@@ -51,7 +51,7 @@ export default function TestGameScreen() {
       });
 
       const lobbyData = await createResponse.json();
-      
+
       if (!createResponse.ok) {
         console.error("Server error:", lobbyData);
         throw new Error(lobbyData.error || "Failed to create lobby");
@@ -116,7 +116,7 @@ export default function TestGameScreen() {
     } catch (error) {
       console.error("Error creating test lobby:", error);
       Alert.alert(
-        "Backend Required", 
+        "Backend Required",
         "Test mode requires the web backend to be running.\n\nRun this command in apps/web:\nnpm run dev",
         [{ text: "OK" }]
       );
