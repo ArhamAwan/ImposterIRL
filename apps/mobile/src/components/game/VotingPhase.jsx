@@ -4,20 +4,25 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Pressable,
-  Alert,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { User, Check, Vote, Target } from "lucide-react-native";
+import { User, Check, AlertTriangle, Target } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { AnimatedBackground } from "@/components/home/AnimatedBackground";
+import { GradientButton } from "@/components/home/GradientButton";
 import { GlitchText } from "@/components/effects/GlitchText";
 import { GlitchView } from "@/components/effects/GlitchView";
 import { GhostCrewmate } from "@/components/svg/Crewmates";
 import { colors } from "@/constants/imposterColors";
+
+const { width } = Dimensions.get("window");
+const COLUMN_GAP = 12;
+const CARD_WIDTH = (width - 48 - COLUMN_GAP) / 2;
 
 export function VotingPhase({
   activePlayers,
@@ -43,22 +48,26 @@ export function VotingPhase({
     if (isEliminated || hasCurrentPlayerVoted) {
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPendingVote(playerId);
+    // Toggle selection
+    if (pendingVote === playerId) {
+      setPendingVote(null);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else {
+      setPendingVote(playerId);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
   };
 
   const handleConfirmVote = () => {
     if (!pendingVote || hasCurrentPlayerVoted) {
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onVote(pendingVote);
   };
 
-  const handleShowResults = () => {
-    if (!isHost) {
-      return;
-    }
+  const handleShowResultsWrapper = () => {
+    if (!isHost) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onShowResults();
   };
@@ -70,217 +79,172 @@ export function VotingPhase({
       {/* Animated Background */}
       <AnimatedBackground style={{ zIndex: -1 }} />
 
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.statsRow}>
+          <GlitchView intensity={0.3} frequency={5000}>
+            <Text style={styles.headerTitle}>VOTING PHASE</Text>
+          </GlitchView>
+          <View style={styles.voteCountBadge}>
+            <Text style={styles.voteCountText}>
+              {votedCount}/{totalPlayers}
+            </Text>
+          </View>
+        </View>
+
+        {/* Who has voted - Tech Style Progress */}
+        <View style={styles.progressBarContainer}>
+          <View
+            style={[
+              styles.progressBarFill,
+              { width: `${(votedCount / totalPlayers) * 100}%` },
+            ]}
+          />
+        </View>
+
+        <Text style={styles.statusText}>
+          {isEliminated
+            ? "You are dead. Silence."
+            : hasCurrentPlayerVoted
+            ? "Vote cast. Waiting for others..."
+            : "Who is the Imposter?"}
+        </Text>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          {
-            paddingTop: insets.top + 20,
-            paddingBottom: insets.bottom + 180,
-          },
+          { paddingBottom: insets.bottom + 100 },
         ]}
-        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <GlitchView
-            intensity={0.5}
-            frequency={4000}
-            style={styles.iconContainer}
+        {/* Eliminated View */}
+        {isEliminated && (
+          <Animated.View
+            entering={FadeInDown.delay(300)}
+            style={styles.eliminatedCard}
           >
-            <Target size={32} color={colors.primary.purple} />
-          </GlitchView>
-          <GlitchText
-            style={styles.title}
-            intensity={0.6}
-            frequency={3500}
-            corrupt={true}
-          >
-            Time to Vote!
-          </GlitchText>
-          <GlitchText
-            style={styles.subtitle}
-            intensity={0.3}
-            frequency={6000}
-            corrupt={false}
-          >
-            {isEliminated
-              ? "You're eliminated. Watch the voting!"
-              : hasCurrentPlayerVoted
-              ? "Your vote has been submitted!"
-              : "Select who you think is the imposter"}
-          </GlitchText>
-        </View>
+            <GhostCrewmate size={60} opacity={0.9} />
+            <GlitchText style={styles.eliminatedText} intensity={0.4}>
+              SPECTATOR MODE
+            </GlitchText>
+          </Animated.View>
+        )}
 
-        {/* Voting Progress Card */}
-        <View style={styles.progressCard}>
-          <Text style={styles.progressLabel}>Votes Submitted</Text>
-          <Text style={styles.progressCount}>
-            {votedCount} / {totalPlayers}
-          </Text>
+        {/* Player Grid */}
+        <View style={styles.gridContainer}>
+          {activePlayers.map((player, index) => {
+            const isMe = player.id === currentPlayerId;
+            const isSelected = pendingVote === player.id;
+            const hasVoted = playersWhoVoted.includes(player.id);
+            const canSelect = !isEliminated && !hasCurrentPlayerVoted && !isMe;
 
-          {/* Progress bar */}
-          <View style={styles.progressBarBg}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${(votedCount / totalPlayers) * 100}%` },
-              ]}
-            />
-          </View>
-        </View>
-
-        {/* Who has voted */}
-        <View style={styles.statusSection}>
-          <Text style={styles.sectionTitle}>Players Status:</Text>
-          <View style={styles.statusGrid}>
-            {activePlayers.map((player) => {
-              const hasVoted = playersWhoVoted.includes(player.id);
-              return (
-                <View
-                  key={player.id}
+            return (
+              <Animated.View
+                key={player.id}
+                entering={FadeInUp.delay(index * 100)}
+                style={{ width: CARD_WIDTH, marginBottom: COLUMN_GAP }}
+              >
+                <TouchableOpacity
+                  activeOpacity={canSelect ? 0.8 : 1}
+                  onPress={() => canSelect && handleSelectPlayer(player.id)}
                   style={[
-                    styles.statusChip,
-                    hasVoted && styles.statusChipVoted,
+                    styles.playerCard,
+                    isSelected && styles.playerCardSelected,
+                    !canSelect && styles.playerCardDisabled,
                   ]}
+                  disabled={!canSelect}
                 >
+                  {/* Status Indicators */}
+                  <View style={styles.cardHeader}>
+                    {hasVoted ? (
+                      <View style={styles.votedBadge}>
+                        <Check
+                          size={12}
+                          color={colors.background.dark}
+                          strokeWidth={4}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.pendingBadge} />
+                    )}
+                  </View>
+
+                  {/* Avatar */}
                   <View
                     style={[
-                      styles.statusAvatar,
+                      styles.avatarContainer,
                       { backgroundColor: player.avatar_color },
+                      isSelected && styles.avatarSelected,
                     ]}
                   >
-                    <User size={12} color="#000" />
+                    <User size={32} color="#000" />
                   </View>
-                  <Text style={styles.statusName}>{player.name}</Text>
-                  {hasVoted && <Check size={16} color={colors.accent.green} />}
-                </View>
-              );
-            })}
-          </View>
+
+                  {/* Name */}
+                  <Text
+                    style={[
+                      styles.playerName,
+                      isSelected && styles.playerNameSelected,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {isMe ? "YOU" : player.name}
+                  </Text>
+
+                  {/* SUS Overlay */}
+                  {isSelected && (
+                    <View style={styles.susBadge}>
+                      <AlertTriangle size={14} color="#FFF" />
+                      <Text style={styles.susText}>SUS?</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
         </View>
-
-        {/* Player selection list */}
-        {!hasCurrentPlayerVoted && !isEliminated && (
-          <View style={styles.selectionSection}>
-            <Text style={styles.sectionTitle}>Vote for the Imposter:</Text>
-            <View style={styles.playerList}>
-              {activePlayers
-                .filter((p) => p.id !== currentPlayerId) // Can't vote for yourself
-                .map((player) => {
-                  const isSelected = pendingVote === player.id;
-
-                  return (
-                    <TouchableOpacity
-                      key={player.id}
-                      style={[
-                        styles.playerCard,
-                        isSelected && styles.playerCardSelected,
-                        // pressed state is handled internally by TouchableOpacity opacity prop
-                      ]}
-                      activeOpacity={0.7}
-                      onPress={() => handleSelectPlayer(player.id)}
-                    >
-                      <View
-                        style={[
-                          styles.playerAvatar,
-                          { backgroundColor: player.avatar_color },
-                        ]}
-                      >
-                        <User size={24} color="#000" />
-                      </View>
-
-                      <View style={styles.playerInfo}>
-                        <Text
-                          style={[
-                            styles.playerName,
-                            isSelected && styles.playerNameSelected,
-                          ]}
-                        >
-                          {player.name}
-                        </Text>
-                      </View>
-
-                      {isSelected && (
-                        <View style={styles.checkCircle}>
-                          <Check size={18} color={colors.primary.purple} />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-            </View>
-          </View>
-        )}
-
-        {/* Already voted message */}
-        {hasCurrentPlayerVoted && !isEliminated && (
-          <View style={styles.votedCard}>
-            <View style={styles.votedIconCircle}>
-              <Check size={32} color={colors.accent.green} />
-            </View>
-            <Text style={styles.votedTitle}>Vote Submitted!</Text>
-            <Text style={styles.votedSubtitle}>
-              Waiting for other players...
-            </Text>
-          </View>
-        )}
-
-        {/* Eliminated player message */}
-        {isEliminated && (
-          <View style={styles.eliminatedCard}>
-            <GhostCrewmate size={80} opacity={0.8} />
-            <Text style={styles.eliminatedTitle}>You're a Ghost</Text>
-            <Text style={styles.eliminatedSubtitle}>
-              You were eliminated and can only observe the voting.
-            </Text>
-          </View>
-        )}
       </ScrollView>
 
-      {/* Bottom buttons */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
-        {/* Test button */}
-
-        {/* Vote button for non-hosts */}
-        {!hasCurrentPlayerVoted && !isEliminated && (
-          <Pressable
-            onPress={() => {
-              console.log("VOTE BUTTON PRESSED");
-              handleConfirmVote();
-            }}
-            style={[
-              styles.voteButton,
-              pendingVote ? styles.voteButtonActive : styles.voteButtonInactive,
-            ]}
-          >
-            <Vote size={20} color={colors.neutral.white} />
-            <Text style={styles.voteButtonText}>
-              {pendingVote ? "Confirm Vote" : "Select a Player"}
-            </Text>
-          </Pressable>
+      {/* Bottom Action Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+        {!hasCurrentPlayerVoted && !isEliminated && pendingVote && (
+          <Animated.View entering={FadeInUp.springify()}>
+            <GradientButton
+              onPress={handleConfirmVote}
+              variant="primary"
+              icon={<Target size={24} color="#FFF" />}
+            >
+              VOTE {activePlayers.find((p) => p.id === pendingVote)?.name}
+            </GradientButton>
+          </Animated.View>
         )}
 
-        {/* Show Results button for host */}
-        {isHost && (
-          <Pressable
-            onPress={() => {
-              console.log("SHOW RESULTS BUTTON PRESSED");
-              handleShowResults();
-            }}
-            style={[
-              styles.voteButton,
-              allVoted ? styles.voteButtonActive : styles.voteButtonInactive,
-              !hasCurrentPlayerVoted && !isEliminated && { marginTop: 12 },
-            ]}
-          >
-            <Target size={20} color={colors.neutral.white} />
-            <Text style={styles.voteButtonText}>
-              {allVoted
-                ? "Show Results"
-                : `Show Results (${votedCount}/${totalPlayers} voted)`}
+        {!hasCurrentPlayerVoted && !isEliminated && !pendingVote && (
+          <Text style={styles.selectHint}>Select a player to investigate</Text>
+        )}
+
+        {(hasCurrentPlayerVoted || isEliminated) && (
+          <View style={styles.waitingContainer}>
+            <Text style={styles.waitingText}>
+              {allVoted ? "Processing Results..." : "Waiting for votes..."}
             </Text>
-          </Pressable>
+          </View>
+        )}
+
+        {isHost && (hasCurrentPlayerVoted || isEliminated) && (
+          <View style={{ marginTop: 12 }}>
+            <GradientButton
+              onPress={handleShowResultsWrapper}
+              variant="secondary"
+              disabled={!allVoted}
+              icon={<Target size={20} color="#FFF" />}
+            >
+              {allVoted
+                ? "REVEAL RESULTS"
+                : `WAITING (${votedCount}/${totalPlayers})`}
+            </GradientButton>
+          </View>
         )}
       </View>
     </View>
@@ -292,256 +256,182 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.dark,
   },
-  scrollView: {
-    flex: 1,
-    zIndex: 2,
-  },
-  scrollContent: {
+  headerContainer: {
     paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
   },
-  header: {
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 12,
   },
-  iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(138, 43, 226, 0.2)",
-    borderWidth: 2,
-    borderColor: colors.primary.purple,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    shadowColor: colors.primary.purple,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-  },
-  title: {
-    fontSize: 28,
+  headerTitle: {
+    fontSize: 20,
     fontFamily: "Poppins_700Bold",
     color: colors.neutral.white,
-    textAlign: "center",
-    marginBottom: 8,
+    letterSpacing: 2,
   },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: "Poppins_400Regular",
-    color: colors.neutral.lightGray,
-    textAlign: "center",
+  voteCountBadge: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  progressCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-    alignItems: "center",
-  },
-  progressLabel: {
-    fontSize: 14,
-    fontFamily: "Poppins_500Medium",
-    color: colors.neutral.lightGray,
-    marginBottom: 8,
-  },
-  progressCount: {
-    fontSize: 36,
-    fontFamily: "Poppins_700Bold",
+  voteCountText: {
+    fontFamily: "Poppins_600SemiBold",
     color: colors.primary.purple,
+    fontSize: 14,
   },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 4,
-    marginTop: 16,
-    width: "100%",
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 2,
+    marginBottom: 8,
     overflow: "hidden",
   },
   progressBarFill: {
     height: "100%",
     backgroundColor: colors.primary.purple,
-    borderRadius: 4,
   },
-  statusSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontFamily: "Poppins_600SemiBold",
+  statusText: {
+    fontFamily: "Poppins_400Regular",
     color: colors.neutral.lightGray,
-    marginBottom: 12,
+    fontSize: 14,
+    textAlign: "center",
   },
-  statusGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  statusChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  statusChipVoted: {
-    backgroundColor: "rgba(0, 255, 136, 0.15)",
-    borderColor: colors.accent.green,
-  },
-  statusAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  statusName: {
-    fontSize: 13,
-    fontFamily: "Poppins_500Medium",
-    color: colors.neutral.white,
-    marginRight: 6,
-  },
-  selectionSection: {
-    marginBottom: 24,
-  },
-  playerList: {
-    gap: 12,
-  },
-  playerCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  playerCardSelected: {
-    backgroundColor: "rgba(138, 43, 226, 0.25)",
-    borderColor: colors.primary.purple,
-    shadowColor: colors.primary.purple,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-  },
-  playerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  playerInfo: {
+  scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  playerCard: {
+    width: "100%",
+    aspectRatio: 0.9,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+  },
+  playerCardSelected: {
+    backgroundColor: "rgba(255, 69, 58, 0.15)", // Red tint
+    borderColor: "#FF453A",
+    transform: [{ scale: 1.05 }],
+    shadowColor: "#FF453A",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  playerCardDisabled: {
+    opacity: 0.5,
+  },
+  cardHeader: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+  },
+  votedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pendingBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    margin: 6,
+  },
+  avatarContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  avatarSelected: {
+    borderColor: "#FFF",
+  },
   playerName: {
-    fontSize: 18,
     fontFamily: "Poppins_600SemiBold",
+    fontSize: 15,
     color: colors.neutral.white,
+    textAlign: "center",
   },
   playerNameSelected: {
-    color: colors.neutral.white,
+    color: "#FF453A",
   },
-  checkCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.neutral.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  votedCard: {
-    backgroundColor: "rgba(0, 255, 136, 0.1)",
-    borderWidth: 1,
-    borderColor: colors.accent.green,
-    borderRadius: 20,
-    padding: 32,
-    alignItems: "center",
-  },
-  votedIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(0, 255, 136, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  votedTitle: {
-    fontSize: 20,
-    fontFamily: "Poppins_600SemiBold",
-    color: colors.accent.green,
-    marginBottom: 8,
-  },
-  votedSubtitle: {
-    fontSize: 14,
-    fontFamily: "Poppins_400Regular",
-    color: colors.neutral.lightGray,
-    textAlign: "center",
-  },
-  eliminatedCard: {
-    backgroundColor: "rgba(0, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(0, 255, 255, 0.3)",
-    borderRadius: 20,
-    padding: 32,
-    alignItems: "center",
-  },
-  eliminatedTitle: {
-    fontSize: 22,
-    fontFamily: "Poppins_700Bold",
-    color: "#00FFFF",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  eliminatedSubtitle: {
-    fontSize: 14,
-    fontFamily: "Poppins_400Regular",
-    color: colors.neutral.lightGray,
-    textAlign: "center",
-  },
-  bottomBar: {
+  susBadge: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.background.dark,
-    paddingTop: 16,
-    paddingHorizontal: 24,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    zIndex: 10,
-  },
-  actionButton: {
-    width: "100%",
-  },
-  voteButton: {
+    bottom: -10,
+    backgroundColor: "#FF453A",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    height: 64,
+    gap: 4,
+  },
+  susText: {
+    color: "#FFF",
+    fontFamily: "Poppins_700Bold",
+    fontSize: 12,
+  },
+  eliminatedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 16,
     borderRadius: 16,
-    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.neutral.midGray,
+    marginBottom: 24,
+    gap: 16,
   },
-  voteButtonActive: {
-    backgroundColor: colors.primary.purple,
-  },
-  voteButtonInactive: {
-    backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  voteButtonText: {
+  eliminatedText: {
+    color: colors.neutral.lightGray,
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
-    fontWeight: "700",
-    color: colors.neutral.white,
+  },
+  bottomBar: {
+    paddingTop: 20,
+    paddingHorizontal: 24,
+    backgroundColor: colors.background.dark,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
+  selectHint: {
+    textAlign: "center",
+    color: colors.neutral.midGray,
+    fontFamily: "Poppins_400Regular",
+  },
+  waitingContainer: {
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  waitingText: {
+    color: colors.neutral.lightGray,
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
   },
 });
