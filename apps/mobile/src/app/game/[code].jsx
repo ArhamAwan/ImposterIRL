@@ -13,6 +13,7 @@ import { getPlayerData, clearGameData } from "@/utils/gameStorage";
 import { useGameData } from "@/hooks/useGameData";
 import { useGameMutations } from "@/hooks/useGameMutations";
 import { useGameTimer } from "@/hooks/useGameTimer";
+import { useBotBehavior } from "@/hooks/useBotBehavior";
 import {
   calculateVoteCounts,
   getVoteResults,
@@ -52,6 +53,20 @@ export default function GameScreen() {
   const { data: gameData } = useGameData(code);
   const { voteMutation, phaseMutation } = useGameMutations(code, currentPlayer);
   const { timeRemaining, resetVibrationFlags } = useGameTimer(gameData);
+
+  // Derived state for bot behavior
+  const activePlayers = gameData?.players
+    ? getActivePlayers(gameData.players, gameData.eliminatedIds)
+    : [];
+
+  useBotBehavior({
+    isHost: currentPlayer?.isHost,
+    phase: gameData?.round?.phase,
+    activePlayers,
+    votes: gameData?.votes,
+    lobbyCode: code,
+    currentRound: gameData?.lobby?.current_round,
+  });
 
   const handleVote = (playerId) => {
     if (gameData?.eliminatedIds?.includes(currentPlayer?.playerId)) {
