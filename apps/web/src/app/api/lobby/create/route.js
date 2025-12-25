@@ -7,7 +7,7 @@ export async function POST(request) {
     if (!playerName || !playerId) {
       return Response.json(
         { error: "Player name and ID required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -27,11 +27,17 @@ export async function POST(request) {
     ];
     const avatarColor = colors[Math.floor(Math.random() * colors.length)];
 
-    // Create lobby
-    await sql`
+    // Create lobby with timeout
+    const createLobbyPromise = sql`
       INSERT INTO lobbies (code, host_player_id, status)
       VALUES (${code}, ${playerId}, 'waiting')
     `;
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Database connection timed out")), 5000)
+    );
+
+    await Promise.race([createLobbyPromise, timeoutPromise]);
 
     // Add host as first player
     await sql`
